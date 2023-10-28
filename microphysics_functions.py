@@ -3,6 +3,8 @@ A collection of functions to handle the conversion and derivation of different m
 
 """
 import numpy as np 
+import math
+
 
 ##### Physical constants #####
 
@@ -19,6 +21,10 @@ cp = 1.005
 # molar mass of air in kg/mol 
 #(only needed for he ideal gas law if gas constant is given in J/(mol*K) 
 molar_mass_air = 28.97 / 1000
+
+# latent heat of vaporization in J/kg
+Lv = 2.25* 10**6 
+
 
 #############################
 
@@ -87,17 +93,20 @@ def get_saturation_vapor_pressure(temperature):
        es: saturation vapor pressure in Pa 
     
     """
-    es = 6.1094 * exp(17.625 * temperature/ (T+243.04) )
+    es = 6.1094 * math.exp(17.625 * temperature/ (temperature+243.04) )
     
     return es
 
 
-def get_dp_dt():
+def get_dp_dT(Lv, temperature, es):
     """
     Derives the change rate in saturation vapor pressure with temperature using the Clausius-Clapeyron equation. 
-
     
     """
+
+    dp_dT = Lv/ (R*temperature**2 / es)
+    return dp_dT 
+
 
 
 def get_condensation_rate(vertical_velocity, temperature, pressure, rho):
