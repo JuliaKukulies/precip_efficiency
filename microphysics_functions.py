@@ -15,12 +15,13 @@ R = 287
 # gravitational acceleration in m/s^2
 g = 9.81
     
-# specific heat at constant pressure in J/kg/K                                                                                                                                                                                
+# specific heat at constant pressure in J/kg/K
 cp = 1.005
 
 # molar mass of air in kg/mol 
 #(only needed for he ideal gas law if gas constant is given in J/(mol*K) 
 molar_mass_air = 28.97 / 1000
+molar_mass_q =  0.01801588 # kg/mol
 
 # latent heat of vaporization in J/kg
 Lv = 2.25* 10**6 
@@ -64,6 +65,11 @@ def mixing_ratio_to_density(mixing_ratio, air_density):
     density= mixing_ratio * air_density
     return density
 
+
+def vapor_pressure_to_mr(vapor_pressure):
+    """
+    Converts the vapor pressure of water in Pa to a mixing ratio q in kg/kg. 
+    """
 
 
 
