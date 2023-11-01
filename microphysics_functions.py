@@ -3,7 +3,7 @@ A collection of functions to handle the conversion and derivation of different m
 
 """
 import numpy as np 
-import math
+
 
 ##### Physical constants #####
 
@@ -66,7 +66,7 @@ def mixing_ratio_to_density(mixing_ratio, air_density):
     return density
 
 
-def vapor_pressure_to_mr(vapor_pressure):
+def vapor_pressure_to_mr(vapor_pressure, pressure):
     """
     Converts the vapor pressure of water in Pa to a mixing ratio q in kg/kg. 
     """
@@ -83,13 +83,10 @@ def pressure_integration(mixing_ratio, pressure ):
       pressure(np.array): 1D or multidimensional field with pressure levels in Pa (make sure pressure data is in right direction!) 
     
     Returns:
-      integrated_mass(np.array): 2D or 3D (if time dimension) of integrated mixing ratio in kg/m2
-   
+      integrated_mass(np.array): 2D or 3D (if time dimension) of integrated mixing ratio in kg/m2   
     """
-    return  np.trapz(mixing_ratio, pressure.squeeze, axis = 0) * 1/g
+    return np.trapz(mixing_ratio, pressure, axis = 0) * 1/g
 
-
-    
 def get_saturation_vapor_pressure(temperature): 
     """
     Estimates the saturation vapor pressure for a given temperature 
@@ -103,9 +100,8 @@ def get_saturation_vapor_pressure(temperature):
     
     """
     # convert temperature to Celsius degrees for this equation
-    temperature -= 273.15
-    
-    es = 6.1094 * math.exp(17.625 * temperature/ (temperature+243.04) )
+    temp_celsius = temperature  - 273.15
+    es = 6.1094 * np.exp(17.625 * temp_celsius/ (temp_celsius + 243.04) )
     # convert from hPa to Pa
     es/= 10
 
@@ -139,28 +135,24 @@ def get_condensation_rate(vertical_velocity, temperature, pressure):
 
 
     Returns:
-      condensation_rate: field with condensation rates for every grid point in kg/m2/s
+      condensation_rate: field with condensation rates for every grid point in kg/kgs
     
     """
     # get change rate of saturation mixing ratio with temperature
     dp_dT = get_dp_dT(temperature)
     # convert saturation vapor pressure to mixing ratio
-    qqs_dT = convert_vapor_pressure_to_mr(dp_dT, pressure)
+    dqs_dT = vapor_pressure_to_mr(dp_dT, pressure)
     
     # get saturation vapor pressure
-    es = get_saturation_pressur(temperature)
+    es = get_saturation_vapor_pressure(temperature)
+    qs = vapor_pressure_to_mr(es, pressure)
     
     # get air density
     rho = get_air_density(pressure, temperature)
     
-    condensation_rate_s = g*vertical_velocity *(dqs_dT*cp**(-1) - (qs* rho)/ (pressure-es) ) * (1 + dqs_dT * Lv/cp)**(-1)
-
-    # convert condensation rate in kg/kg per second to kg/m2/s:
-    condensation_rate = convert_mixing_ratio_to_density(condensation_rate_s)
-
+    condensation_rate = g*vertical_velocity *(dqs_dT*cp**(-1) - (qs* rho)/ (pressure-es) ) * (1 + dqs_dT * Lv/cp)**(-1)
+    
     return condensation_rate
-
-
 
 
 
