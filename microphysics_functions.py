@@ -102,11 +102,8 @@ def get_saturation_vapor_pressure(temperature):
     # convert temperature to Celsius degrees for this equation
     temp_celsius = temperature  - 273.15
     es = 6.1094 * np.exp(17.625 * temp_celsius/ (temp_celsius + 243.04) )
-    # convert from hPa to Pa
-    es/= 10
-
-    return es
-
+    es_Pa = es * 100 
+    return es_Pa
 
 def get_dp_dT(temperature):
     """
