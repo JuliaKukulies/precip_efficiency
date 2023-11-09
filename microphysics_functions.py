@@ -34,7 +34,7 @@ def get_air_density(pressure, temperature):
     Get air density based on the ideal gas law 
 
     Args: 
-      pressure(np.array or xr.DataArray): air pressure field in P
+      pressure(np.array or xr.DataArray): air pressure field in Pa
       temperature(np.array or xr.DataArray): temperature field in K 
 
     Returns:
@@ -117,7 +117,7 @@ def get_dp_dT(temperature):
     """
     es = get_saturation_vapor_pressure(temperature)
 
-    dp_dT = Lv/ (R*temperature**2 / es)
+    dp_dT = Lv/ (Rv *temperature**2 / es)
     return dp_dT 
 
 
