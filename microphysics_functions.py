@@ -79,7 +79,7 @@ def vapor_pressure_to_mr(vapor_pressure, pressure):
 
 def get_dqs_des(vapor_pressure, pressure):
     """
-    Converts the vapor pressure of water in Pa to a mixing ratio q in kg/kg. 
+    Derivative of saturation mixing ratio qs with respect to es.
     """
     dqs_des= R/Rv * ( pressure/  (pressure - vapor_pressure)**2  )
     return dqs_des
