@@ -73,15 +73,17 @@ def vapor_pressure_to_mr(vapor_pressure, pressure):
     Converts the vapor pressure of water in Pa to a mixing ratio q in kg/kg. 
     """
     mixing_ratio = R/Rv * (vapor_pressure/ (pressure-vapor_pressure))
-    return mixing_ratio
+    return mixing_ratio 
+
 
 
 def get_dqs_des(vapor_pressure, pressure):
     """
     Converts the vapor pressure of water in Pa to a mixing ratio q in kg/kg. 
     """
-    dqs_des= R/Rv * ( 1/(pressure-vapor_pressure)  - vapor_pressure/(pressure - vapor_pressure)**2  )
+    dqs_des= R/Rv * ( pressure/  (pressure - vapor_pressure)**2  )
     return dqs_des
+
 
 def pressure_integration(mixing_ratio, pressure ):
     """
@@ -95,9 +97,6 @@ def pressure_integration(mixing_ratio, pressure ):
       integrated_mass(np.array): 2D or 3D (if time dimension) of integrated mixing ratio in kg/m2   
     """
     return np.trapz(mixing_ratio, pressure, axis = 0) * 1/g
-
-
-
 
 
 def height_integration(density, heights, axis = 0):
