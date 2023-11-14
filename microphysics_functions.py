@@ -27,7 +27,7 @@ molar_mass_air = 28.97 / 1000
 molar_mass_q =  0.01801588 # kg/mol
 
 # latent heat of vaporization in J/kg
-Lv = 2.5* 10**6 
+Lv = 2.25 * 10**6 
 
 #############################
 
