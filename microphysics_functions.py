@@ -1,6 +1,6 @@
 """
 A collection of functions to handle the conversion and derivation of different microphyiscal quantities. 
-
+5B
 """
 import numpy as np 
 
@@ -16,8 +16,10 @@ Rv = 461.5
 # gravitational acceleration in m/s^2
 g = 9.81
     
-# specific heat at constant pressure in J/kg/K
-cp = 1.005
+# specific heat at constant pressure for air in J/kg/K
+cp = 1005
+# specific heat at constant pressure for water vapor 
+cpv = 2000
 
 # molar mass of air in kg/mol 
 #(only needed for he ideal gas law if gas constant is given in J/(mol*K) 
@@ -25,7 +27,7 @@ molar_mass_air = 28.97 / 1000
 molar_mass_q =  0.01801588 # kg/mol
 
 # latent heat of vaporization in J/kg
-Lv = 2.25* 10**6 
+Lv = 2.5* 10**6 
 
 #############################
 
@@ -51,7 +53,7 @@ def mixing_ratio_to_density(mixing_ratio, air_density):
     
     Args:
        mixing_ratio(np.array or xr.DataArray): field with mixing ratio of a given hydrometer in kg/kg
-       air_density(np.array or xr.DataArray): field with air density in kg/m3 at a given temperature and pressure
+       air_density(np.array or xr.DataArray): field with air density in kg/m3 at a given temperature and pressure5A5A5A
 
     Returns:
     
@@ -74,6 +76,13 @@ def vapor_pressure_to_mr(vapor_pressure, pressure):
     return mixing_ratio
 
 
+def get_dqs_des(vapor_pressure, pressure):
+    """
+    Converts the vapor pressure of water in Pa to a mixing ratio q in kg/kg. 
+    """
+    dqs_des= R/Rv * ( 1/(pressure-vapor_pressure)  - vapor_pressure/(pressure - vapor_pressure)**2  )
+    return dqs_des
+
 def pressure_integration(mixing_ratio, pressure ):
     """
     Integrates the mixing ratio of a hydrometeor over pressure which results in kg/m2. 
@@ -86,6 +95,24 @@ def pressure_integration(mixing_ratio, pressure ):
       integrated_mass(np.array): 2D or 3D (if time dimension) of integrated mixing ratio in kg/m2   
     """
     return np.trapz(mixing_ratio, pressure, axis = 0) * 1/g
+
+
+
+
+
+def height_integration(density, heights, axis = 0):
+    """                                                                                                                                                                                        
+    Integrates the mixing ratio of a hydrometeor over pressure which results in kg/m2.                                                                                                         
+                                                                                                                                                                                               
+    Args:                                                                                                                                                                                      
+      mixing ratio(np.array): 3D or 4D field of hydrometero quantity as density/concentration (i.e. kg/m3)                                                                                       
+      pressure(np.array): 1D or multidimensional field with heights in meter                                                            
+                                                                                                                                                                                               
+    Returns:                                                                                                                                                                                   
+      integrated_mass(np.array): 2D or 3D (if time dimension) of integrated mixing ratio in kg/m2                                                                                              
+    """
+    return np.trapz(density, heights, axis = axis) 
+
 
 def get_saturation_vapor_pressure(temperature): 
     """
@@ -105,23 +132,20 @@ def get_saturation_vapor_pressure(temperature):
     es_Pa = es * 100 
     return es_Pa
 
-def get_dp_dT(temperature):
+
+def get_des_dT(temperature, es):
     """
     Derives the change rate in saturation vapor pressure with temperature using the Clausius-Clapeyron equation. 
 
     Args:
        temperature: temperature value or field
     Returns:
-       dp_dT: change rate of saturation vapor pressure with temperature in Pa/K
-    
+       dp_dT: change rate of saturation vapor pressure with temperature in Pa/K    
     """
-    es = get_saturation_vapor_pressure(temperature)
+    des_dT = Lv * es/ (Rv*temperature**2)
+    return des_dT 
 
-    dp_dT = Lv/ (Rv *temperature**2 / es)
-    return dp_dT 
-
-
-def get_condensation_rate(vertical_velocity, temperature, pressure):
+def get_condensation_rate(vertical_velocity, temperature, pressure, base_pressure):
     """
     Estimates the condensation rate from standard model output based on saturation adjustment.
 
@@ -130,25 +154,24 @@ def get_condensation_rate(vertical_velocity, temperature, pressure):
       temperature(np.array or xr.DataArray): temperature field in K
       pressure(np.array or xr.DataArray): air pressure field in Pa
 
-
     Returns:
-      condensation_rate: field with condensation rates for every grid point in kg/kgs
-    
+      condensation_rate: field with condensation rates for every grid point in kg/kgs    
     """
-    # get change rate of saturation mixing ratio with temperature
-    dp_dT = get_dp_dT(temperature)
-    # convert saturation vapor pressure to mixing ratio
-    dqs_dT = vapor_pressure_to_mr(dp_dT, pressure)
-    
     # get saturation vapor pressure
     es = get_saturation_vapor_pressure(temperature)
-    qs = vapor_pressure_to_mr(es, pressure)
-    
+    qs = vapor_pressure_to_mr(es, base_pressure)
+
+    # get change rate of saturation mixing ratio with temperature
+    des_dT = get_des_dT(temperature, es)
     # get air density
     rho = get_air_density(pressure, temperature)
+
+    # derivative dqs/des 
+    dqs_des = get_dqs_des(es, base_pressure)
+    dqs_dT = des_dT * dqs_des
     
-    condensation_rate = g*vertical_velocity *(dqs_dT*cp**(-1) - (qs* rho)/ (pressure-es) ) * (1 + dqs_dT * Lv/cp)**(-1)
-    
+    condensation_rate = g*vertical_velocity *(dqs_dT*cp**(-1) - (qs* rho)/(base_pressure-es) ) * (1 + dqs_dT * (Lv/cp))**(-1)
+
     return condensation_rate
 
 
