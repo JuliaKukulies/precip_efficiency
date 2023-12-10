@@ -27,7 +27,7 @@ molar_mass_air = 28.97 / 1000
 molar_mass_q =  0.01801588 # kg/mol
 
 # latent heat of vaporization in J/kg
-Lv = 2.25 * 10**6 
+Lv = 2.5* 10**6 
 
 #############################
 
@@ -76,16 +76,15 @@ def vapor_pressure_to_mr(vapor_pressure, pressure):
     return mixing_ratio 
 
 
-
 def get_dqs_des(vapor_pressure, pressure):
     """
-    Derivative of saturation mixing ratio qs with respect to es.
+    Converts the vapor pressure of water in Pa to a mixing ratio q in kg/kg. 
     """
     dqs_des= R/Rv * ( pressure/  (pressure - vapor_pressure)**2  )
     return dqs_des
 
 
-def pressure_integration(mixing_ratio, pressure ):
+def pressure_integration(mixing_ratio, pressure , axis = 0):
     """
     Integrates the mixing ratio of a hydrometeor over pressure which results in kg/m2. 
 
@@ -96,7 +95,7 @@ def pressure_integration(mixing_ratio, pressure ):
     Returns:
       integrated_mass(np.array): 2D or 3D (if time dimension) of integrated mixing ratio in kg/m2   
     """
-    return np.trapz(mixing_ratio, pressure, axis = 0) * 1/g
+    return np.trapz(mixing_ratio, pressure, axis = axis) * 1/g
 
 
 def height_integration(density, heights, axis = 0):
@@ -158,7 +157,7 @@ def get_condensation_rate(vertical_velocity, temperature, pressure, base_pressur
     """
     # get saturation vapor pressure
     es = get_saturation_vapor_pressure(temperature)
-    qs = vapor_pressure_to_mr(es, base_pressure)
+    qs = vapor_pressure_to_mr(es, pressure)
 
     # get change rate of saturation mixing ratio with temperature
     des_dT = get_des_dT(temperature, es)
@@ -166,10 +165,10 @@ def get_condensation_rate(vertical_velocity, temperature, pressure, base_pressur
     rho = get_air_density(pressure, temperature)
 
     # derivative dqs/des 
-    dqs_des = get_dqs_des(es, base_pressure)
+    dqs_des = get_dqs_des(es, pressure)
     dqs_dT = des_dT * dqs_des
     
-    condensation_rate = g*vertical_velocity *(dqs_dT*cp**(-1) - (qs* rho)/(base_pressure-es) ) * (1 + dqs_dT * (Lv/cp))**(-1)
+    condensation_rate = g*vertical_velocity *(dqs_dT*cp**(-1) - (qs* rho)/(pressure-es) ) * (1 + dqs_dT * (Lv/cp))**(-1)
 
     return condensation_rate
 
