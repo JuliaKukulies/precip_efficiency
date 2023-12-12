@@ -1,4 +1,5 @@
 import os
+import setuptools 
 from setuptools import setup
 
 # Utility function to read the README file.
@@ -8,18 +9,14 @@ from setuptools import setup
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
-
 setup(
-    name = "precipitation_efficiency",
+    name = "microphysics",
     version = "0.0.1",
     author = "Julia Kukulies",
     author_email = "kukulies@ucar.edu",
     description = ("A package for the analysis of microphysical processes in model output."),
-    license = "BSD",
+    license = "BSD-3-Clause License", 
+    packages = ["microphysics"],
     long_description=read('README.md'),
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Topic :: Utilities",
-        "License :: OSI Approved :: BSD License",
-    ],
+    zip_safe = False,
 )
