@@ -17,8 +17,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 ##### 10 MCS cases #####
-path = Path('/glade/scratch/kukulies/idealized_storms/19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/4000/em_quarter_ss/')
-caseIDs = ['19']
+path = Path('/glade/scratch/kukulies/idealized_storms/23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5/4000/')
+caseIDs = ['23']
 resolution = '4000' 
 
 for caseID in caseIDs:
@@ -31,7 +31,7 @@ for caseID in caseIDs:
     end = datetime.datetime(int(year), int(month), int(day), 7, 0)
     times = pd.date_range(start, end, freq= '1MIN') 
     print('deriving data for case '+ caseID + ' ' +date+ ' with' + resolution +  ' meter resolution.')
-    files = list(path.glob('wrfout*process*'))
+    files = list(path.glob('wrfout*'))
     files.sort()
     assert times.shape[0]  == len(files)
     for fname in files:
@@ -49,6 +49,8 @@ for caseID in caseIDs:
         qcloud = mcs_case.QCLOUD
         pressure = wrf.getvar(wrfin, 'pres')
         base_pressure =  mcs_case.PB
+
+
         # integate iwc and lwp over pressure
         iwp = micro.pressure_integration(iwc.data, -pressure.data)
         lwp = micro.pressure_integration(lwc.data, -pressure.data)
@@ -87,4 +89,4 @@ for caseID in caseIDs:
 
     coords = dict(south_north=mcs_case.south_north.values, west_east=mcs_case.west_east.values, time = times)
     data = xr.Dataset(data_vars=data_vars, coords=coords)                                                                 
-    data.to_netcdf('/glade/scratch/kukulies/idealized_storms/19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/4000/Idealized_storm_' + caseID + '_' + date + '_' + resolution + '_derived.nc')       
+    data.to_netcdf('/glade/scratch/kukulies/idealized_storms/23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5/4000/Idealized_MCS_' + caseID + '_' + date + '_' + resolution + '.nc')       

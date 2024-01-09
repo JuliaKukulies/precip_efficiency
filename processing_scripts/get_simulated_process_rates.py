@@ -1,12 +1,16 @@
+"""
+Get vertically integrated process rates (condensation and deposition rates) as output by idealized WRF simulations of MCS cases.
+
+"""
+
 import xarray as xr 
 from pathlib import Path 
 import numpy as np 
 from datetime import datetime 
 import pandas as pd 
+import microphysics_functions as micro
 
-start = datetime(2011,7,13,0,0)
-end =  datetime(2011,7,13,7,0)
-times = pd.date_range(start, end, freq='1MIN') 
+times = np.arange(421)
 print(times.shape)
 
 path = Path('/glade/scratch/kukulies/idealized_storms/10_2009-06-27_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/4000/') 
@@ -20,20 +24,23 @@ for processname in process_rates:
     print(processname)
     for fname in files:
         ds= xr.open_dataset(fname)
-        process_t = ds[processname].where(ds[processname] > 0, 0)
+        process_t = ds[processname].where(ds[processname] > 0, 0).squeeze()
+        pressure = ds.P.squeeze() + ds.PB.squeeze()
         lats = ds.XLAT.squeeze().values
         lons = ds.XLONG.squeeze().values
+        integration = micro.pressure_integration(process_t.data, -pressure.data)
         if fname == files[0]:
-            process = process_t
+            process = integration
         else:
-            process = xr.concat([process, process_t], dim  = 'Time')
+            process = np.dstack((process, integration))
+        print(process.shape, lats.shape, lons.shape, times.shape)
           
     #### Save data for the case to netCDF4
-    data_vars = {processname:(["time", "bottom_top", "south_north", "west_east"], process.data),
+    data_vars = {processname:(["south_north", "west_east", "time"], process),
                 'lats':(["south_north", "west_east",], lats),
                 'lons':(["south_north", "west_east"], lons),}
 
-    coords = dict(time= times, bottom_top = ds.bottom_top.values, south_north=ds.south_north.values, west_east=ds.west_east.values)
+    coords = dict(time= times, south_north=ds.south_north.values, west_east=ds.west_east.values)
     data = xr.Dataset(data_vars=data_vars, coords = coords)                                   
-    data.to_netcdf('/glade/scratch/kukulies/idealized_storms/Idealized_MCS_em_quarter_10_' +processname+'.nc') 
+    data.to_netcdf('/glade/scratch/kukulies/idealized_storms/Idealized_MCS_10_' +processname+'_integrated.nc') 
 
