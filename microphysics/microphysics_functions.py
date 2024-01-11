@@ -143,7 +143,7 @@ def get_des_dT(temperature, es):
     des_dT = Lv * es/ (Rv*temperature**2)
     return des_dT 
 
-def get_condensation_rate(vertical_velocity, temperature, pressure, base_pressure):
+def get_condensation_rate(vertical_velocity, temperature, pressure):
     """
     Estimates the condensation rate from standard model output based on saturation adjustment.
 
