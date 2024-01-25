@@ -1,6 +1,6 @@
 """
-A collection of functions to handle the conversion and derivation of different microphyiscal quantities. 
-5B
+A collection of functions to handle the conversion and derivation of different microphyiscal quantities.
+
 """
 import numpy as np 
 
