@@ -4,6 +4,7 @@ This script derives the estimated and simulated condensation rates as well as ac
 kukulies@ucar.edu
 
 """
+
 import numpy as np
 import datetime
 import pandas as pd 
@@ -11,33 +12,30 @@ import xarray as xr
 import wrf
 from netCDF4 import Dataset
 from pathlib import Path
-import microphysics_functions as micro
+from microphysics import microphysics_functions as micro
 import warnings
 warnings.filterwarnings("ignore")
 
-
 ##### MCS cases #####
-path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/10_2009-06-27_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/4000/')
-year = '2009'
+path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5/4000/')
+year = '2007'
 month = '06'
-day  = '27'
-
-
+day  = '19'
 fnames = dict()
+
 # file lists with different temporal output 
-fnames['1min'] = list(path.glob('wrfout_d01*'))
-fnames['1min'].sort()
-fnames['5min'] = fnames_1min[::5]
-fnames['10min'] = fnames_1min[::10]
-fnames['20min'] = fnames_1min[::20]
-fnames['30min'] = fnames_1min[::30]
-fnames['40min'] = fnames_1min[::40]
-fnames['50min'] = fnames_1min[::50]
-fnames['1H' ]= fnames_1min[::60] 
+fnames['5min'] = list(path.glob('wrfout_pr*'))
+fnames['5min'].sort()
+fnames['10min'] = fnames['5min'][::2]
+fnames['20min'] = fnames['5min'][::4]
+fnames['30min'] = fnames['5min'][::6]
+fnames['40min'] = fnames['5min'][::8]
+fnames['50min'] = fnames['5min'][::10]
+fnames['1H'] = fnames['5min'][::12]
 
 # get time series for case 
 date = year + month + day
-start = datetime.datetime(int(year), int(month), int(day), 1, 0)
+start = datetime.datetime(int(year), int(month), int(day), 0, 0)
 end = datetime.datetime(int(year), int(month), int(day), 7, 0)
 
 for key in fnames.keys():
@@ -48,8 +46,6 @@ for key in fnames.keys():
     
     # loop through output files
     for fname in files:
-        print(fname, flush = True)
-
         #### Read in data for that timestep
         mcs_case = xr.open_dataset(fname).squeeze()
         wrfin = Dataset(fname)
@@ -60,7 +56,7 @@ for key in fnames.keys():
         pressure = wrf.getvar(wrfin, 'pres')
 
         #### Derive condensation rate from hourly variables instead of minute-output (in kg/kg/s)
-        condensation_rate_s= micro.get_condensation_rate(vertical_velocity, temp, pressure, base_pressure)
+        condensation_rate_s= micro.get_condensation_rate(vertical_velocity, temp, pressure)
         rho = micro.get_air_density(pressure, temp).squeeze()
         condensation_rate_s = condensation_rate_s
         
@@ -76,23 +72,23 @@ for key in fnames.keys():
         
         # accumulate precip, take instaneous values for w,p,T 
         if fname == files[0]: 
-            precip = mcs_case.RAINNC
+            surface_precip = mcs_case.RAINNC
             prwvcd = prwvcd_integrated
             condensation_rate = condensation
         else:
-            precip = np.dstack((precip,  mcs_case.RAINNC  )) 
+            surface_precip = np.dstack((surface_precip,  mcs_case.RAINNC  )) 
             prwvcd = np.dstack((prwvcd,  prwvcd_integrated ))
-            condensation_rate = np.dstack((condensation_rate, condensation ))  
-                         
+            condensation_rate = np.dstack((condensation_rate, condensation ))
+        
     #### Save data for the case to netCDF4
     data_vars = dict(condensation_rate=(["south_north", "west_east", "time"], condensation_rate),
                      surface_precip=(["south_north", "west_east", "time"], surface_precip),
-                     prwvcd=(["south_north", "west_east", "time"], condensation_rate),
+                     prwvcd=(["south_north", "west_east", "time"], prwvcd),
                      lats=(["south_north", "west_east"], mcs_case.XLAT.values),
                      lons=(["south_north", "west_east"], mcs_case.XLONG.values),)
-    
+
     coords = dict(south_north=mcs_case.south_north.values, west_east=mcs_case.west_east.values, time = times) 
     data = xr.Dataset(data_vars=data_vars, coords=coords)                                                                 
-    data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/10_2009-06-27_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/4000/idealized_mcs_condensation_' + key + '.nc') 
+    data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5/4000/idealized_mcs_condensation_timestep_dependence_' + key + '.nc')
 
-    
+

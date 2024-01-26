@@ -97,6 +97,7 @@ for resolution in resolutions:
                 iwc = mcs_case.QSNOW +  mcs_case.QICE +  mcs_case.QGRAUP
                 lwc =mcs_case.QRAIN + mcs_case.QCLOUD
                 precip = mcs_case.RAINNC
+                tprecip = mcs_case.TOTAL_PRECIP
                 # get vertical velocity on mass points instead of staggered
                 vertical_velocity = wrf.getvar(wrfin, 'wa')
                 temp = wrf.getvar(wrfin, 'temp')
@@ -125,9 +126,11 @@ for resolution in resolutions:
                     tlwp = lwp
                     condensation_rate = condensation
                     surface_precip = precip
+                    total_precip = tprecip
                     vertical_mass_flux = mass_flux 
                 else:
-                    surface_precip = np.dstack((surface_precip, precip)) 
+                    surface_precip = np.dstack((surface_precip, precip))
+                    total_precip = np.dstack((total_precip, tprecip)) 
                     tiwp  = np.dstack((tiwp, iwp ))
                     tlwp = np.dstack((tlwp, lwp))
                     condensation_rate = np.dstack((condensation_rate, condensation))
@@ -137,6 +140,7 @@ for resolution in resolutions:
             data_vars = dict(tiwp=(["south_north", "west_east", "time"], tiwp),
                              tlwp=(["south_north", "west_east", "time"], tlwp),
                              surface_precip=(["south_north", "west_east", "time"],surface_precip),
+                             total_precip=(["south_north", "west_east", "time"],total_precip),
                              condensation_rate=(["south_north", "west_east", "time"], condensation_rate),
                              lats=(["south_north", "west_east"], mcs_case.XLAT.values),
                              lons=(["south_north", "west_east"], mcs_case.XLONG.values),)
