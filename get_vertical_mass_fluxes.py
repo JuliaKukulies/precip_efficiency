@@ -2,8 +2,6 @@
 This script derives the condensation rate and other vertically integrated variables from 3D model output for idealized MCS cases at different grid spacings.
 
 kukulies@ucar.edu
-
-
 """
 
 import numpy as np
@@ -43,16 +41,15 @@ warnings.filterwarnings("ignore")
 
 ##### 10 MCS cases #####
 path = Path('/glade/campaign/mmm/c3we/prein/Idealized_MCSs/wrfout_files/WRF/')
-out_path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/')
+out_path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/grid_spacing_sensitivity/')
 
 present_cases = ['03', '07', '10', '13', '17', '18', '19' ,'23', '38', '46']
 future_cases  = ['64', '58', '41', '68', '31', '16', '34' ,'51', '56', '35']
 caseIDs = present_cases + future_cases
 
-resolutions = [12000, 4000, 2000, 1000, 500, 250]
+resolutions = ['12000nc', '4000', '2000', '1000', '500', '250']
 
 for resolution in resolutions:
-    resolution = str(resolution)
     for caseID in caseIDs:
         if caseID in ['03', '07', '23', '58']:
             loc = 'Loc2'
@@ -73,7 +70,7 @@ for resolution in resolutions:
         start = datetime.datetime(int(year), int(month), int(day), 0, 0)
         end = datetime.datetime(int(year), int(month), int(day), 7, 0)
         times = pd.date_range(start, end, freq= '5MIN')
-        out_fname = out_path / ('idealized_mcs_'+ tag.lower()  +'_' + caseID + '_' + date + '_' + resolution + '.nc')
+        out_fname = out_path / ('idealized_mcs_'+ tag.lower()  +'_' + caseID + '_' + date + '_' + resolution + '_updrafts_downdrafts.nc')
         
         if not Path( out_fname ).exists():
             print('deriving data for case '+ caseID + ' ' +date+ ' with' + resolution +  ' meter resolution.', flush = True)
@@ -85,7 +82,6 @@ for resolution in resolutions:
             if caseID == '58':
                 del files[-1]
                 times = times[:-1]
-                
             print(len(files), times.shape[0])
             assert times.shape[0]  == len(files)
             for fname in files:
@@ -93,55 +89,25 @@ for resolution in resolutions:
                 #### Read in data for timestep
                 mcs_case = xr.open_dataset(fname).squeeze()
                 wrfin = Dataset(fname)
-                # get variables 
-                iwc = mcs_case.QSNOW +  mcs_case.QICE +  mcs_case.QGRAUP
-                lwc =mcs_case.QRAIN + mcs_case.QCLOUD
-                precip = mcs_case.RAINNC
-                tprecip = mcs_case.TOTAL_PRECIP
                 # get vertical velocity on mass points instead of staggered
                 vertical_velocity = wrf.getvar(wrfin, 'wa')
-                temp = wrf.getvar(wrfin, 'temp')
-                qcloud = mcs_case.QCLOUD
+                temp = wrf.getvar(wrfin, 'tk')
+                heights = wrf.getvar(wrfin, 'z')
                 pressure = mcs_case.P + mcs_case.PB
-                # integate iwc and lwp over pressure
-                iwp = micro.pressure_integration(iwc.data, -pressure.data)
-                lwp = micro.pressure_integration(lwc.data, -pressure.data)
-                
-                # convective mass flux 
+                # calculate convective mass fluxes
                 rho = micro.get_air_density(pressure, temp)
-                mass_flux = np.nansum(vertical_velocity.where(vertical_velocity >= 2) * rho, axis = 0)
+                mass_flux_up = np.nansum(vertical_velocity.where( (vertical_velocity >= 3) & (heights < 16000), 0) * rho, axis = 0)
+                mass_flux_down = np.nansum(vertical_velocity.where( (vertical_velocity <= -3) & (heights < 16000), 0) * rho, axis = 0)
                 
-                #### Derive condensation rate (in kg/kg/s)
-                condensation_rate_s= micro.get_condensation_rate(vertical_velocity, temp, pressure)
-                ### apply qcloud mask, because equation is conditional for grid cells with actual condensate 
-                condensation_masked = condensation_rate_s.where(qcloud > 0, 0 )
-                # we are only interested in positive values, as negative values are evaporation 
-                condensation_masked = condensation_masked.where(condensation_masked > 0, 0 ).data
-                ### integrate over pressure levels to get kg/m2/s
-                condensation = micro.pressure_integration(condensation_masked,-pressure.data)
-
                 #### Concatenate timesteps 
                 if fname == files[0]:
-                    tiwp = iwp
-                    tlwp = lwp
-                    condensation_rate = condensation
-                    surface_precip = precip
-                    total_precip = tprecip
-                    vertical_mass_flux = mass_flux 
+                    updrafts = mass_flux_up 
                 else:
-                    surface_precip = np.dstack((surface_precip, precip))
-                    total_precip = np.dstack((total_precip, tprecip)) 
-                    tiwp  = np.dstack((tiwp, iwp ))
-                    tlwp = np.dstack((tlwp, lwp))
-                    condensation_rate = np.dstack((condensation_rate, condensation))
-                    vertical_mass_flux = np.dstack((vertical_mass_flux, mass_flux ))
+                    updrafts = np.dstack((updrafts, mass_flux_up ))
                     
             #### Save data for the case to netCDF4
-            data_vars = dict(tiwp=(["south_north", "west_east", "time"], tiwp),
-                             tlwp=(["south_north", "west_east", "time"], tlwp),
-                             surface_precip=(["south_north", "west_east", "time"],surface_precip),
-                             total_precip=(["south_north", "west_east", "time"],total_precip),
-                             condensation_rate=(["south_north", "west_east", "time"], condensation_rate),
+            data_vars = dict(updrafts=(["south_north", "west_east", "time"], updrafts),
+                             downdrafts=(["south_north", "west_east", "time"], downdrafts),
                              lats=(["south_north", "west_east"], mcs_case.XLAT.values),
                              lons=(["south_north", "west_east"], mcs_case.XLONG.values),)
             

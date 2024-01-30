@@ -66,9 +66,11 @@ for key in fnames.keys():
         condensation_masked = condensation_cloud.where(condensation_cloud > 0, 0 ).data
         ### integrate over pressure levels to get kg/m2/s
         condensation = micro.pressure_integration(condensation_masked,-pressure.data)
-        
+
+        # get air density
+        rho = micro.get_air_density(pressure.squeeze().data, temp.squeeze().data)
         # vertical integration of process rate
-        prwvcd_integrated = micro.pressure_integration(mcs_case.PRW_VCD.squeeze().data, -pressure.data)
+        prwvcd_integrated = micro.pressure_integration(mcs_case.PRW_VCD.squeeze().data / rho , -pressure.data)
         
         # accumulate precip, take instaneous values for w,p,T 
         if fname == files[0]: 
@@ -89,6 +91,6 @@ for key in fnames.keys():
 
     coords = dict(south_north=mcs_case.south_north.values, west_east=mcs_case.west_east.values, time = times) 
     data = xr.Dataset(data_vars=data_vars, coords=coords)                                                                 
-    data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5/4000/idealized_mcs_condensation_timestep_dependence_' + key + '.nc')
+    data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5/4000/idealized_mcs_condensation_timestep_dependence_' + key + '_rhotest.nc')
 
 
