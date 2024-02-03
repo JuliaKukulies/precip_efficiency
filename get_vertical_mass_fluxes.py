@@ -82,7 +82,8 @@ for resolution in resolutions:
             if caseID == '58':
                 del files[-1]
                 times = times[:-1]
-            print(len(files), times.shape[0])
+                
+            print(subdir, len(files), times.shape[0])
             assert times.shape[0]  == len(files)
             for fname in files:
                 print(subdir.name, fname)
@@ -101,9 +102,11 @@ for resolution in resolutions:
                 
                 #### Concatenate timesteps 
                 if fname == files[0]:
-                    updrafts = mass_flux_up 
+                    updrafts = mass_flux_up
+                    downdrafts = mass_flux_down
                 else:
                     updrafts = np.dstack((updrafts, mass_flux_up ))
+                    downdrafts = np.dstack((downdrafts, mass_flux_down ))
                     
             #### Save data for the case to netCDF4
             data_vars = dict(updrafts=(["south_north", "west_east", "time"], updrafts),
