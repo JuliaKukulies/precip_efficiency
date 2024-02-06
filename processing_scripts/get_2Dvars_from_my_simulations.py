@@ -17,21 +17,33 @@ import warnings
 warnings.filterwarnings("ignore")
 
 ##### 10 MCS cases #####
-path = Path('/glade/scratch/kukulies/idealized_storms/23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5/4000/')
-caseIDs = ['23']
+path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/')
+
+cases =['19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
+        '03_2011-07-16_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5',
+        '23_2007-06-19_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5',
+        '10_2009-06-27_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
+        '13_2003-08-30_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
+        '17_2011-06-27_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
+        '18_2010-06-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
+        '38_2007-08-04_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
+        '46_2009-06-14_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
+        '07_2011-07-04_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5',  ]
+
 resolution = '4000' 
 
-for caseID in caseIDs:
-    # get times
-    year = '2011'
-    month = '07'
-    day  = '13'
+for caseID in cases:
+    # get dates from fname
+    year = case[3:7]
+    month = case[8:10]
+    day = case[11:13]
     date = year + month + day
     start = datetime.datetime(int(year), int(month), int(day), 0, 0)
     end = datetime.datetime(int(year), int(month), int(day), 7, 0)
-    times = pd.date_range(start, end, freq= '1MIN') 
+    times = pd.date_range(start, end, freq= '5MIN')
+    
     print('deriving data for case '+ caseID + ' ' +date+ ' with' + resolution +  ' meter resolution.')
-    files = list(path.glob('wrfout*'))
+    files = list(path.glob('wrfout*pr*'))
     files.sort()
     assert times.shape[0]  == len(files)
     for fname in files:

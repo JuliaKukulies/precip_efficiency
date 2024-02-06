@@ -11,10 +11,10 @@ import pandas as pd
 from microphysics import microphysics_functions as micro
 import wrf 
 from netCDF4 import Dataset
-times = np.arange(421)
 
+times = np.arange(85)
 path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/4000/') 
-files = list(path.glob('wrfout*'))
+files = list(path.glob('wrfout*pr*'))
 files.sort()
 assert len(files) == times.size
 
