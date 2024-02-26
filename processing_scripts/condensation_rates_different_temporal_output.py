@@ -1,3 +1,4 @@
+
 """
 This script derives the estimated and simulated condensation rates as well as accumulated precip for different temporal output from idealized MCS simulations.
 
@@ -28,9 +29,9 @@ cases =['19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
         '18_2010-06-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
         '38_2007-08-04_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
         '46_2009-06-14_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
-        '07_2011-07-04_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5',  ]
+        '07_2011-07-04_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5', ]
 
-grid_spacings = ['12000', '2000', '1000', '500']
+grid_spacings = ['12000', '4000', '2000', '1000', '500']
 
 for case in [cases[0]]:
     for delta_x in grid_spacings:
@@ -38,13 +39,14 @@ for case in [cases[0]]:
         path = parent_path / case / delta_x
 
         # file lists with different temporal output 
-        fnames['5min'] = list(path.glob('wrfout_pr*'))
+        fnames['5min'] = list(path.glob('wrfout_pr*00'))
         fnames['5min'].sort()
         #fnames['10min'] = fnames['5min'][::2]
-        #fnames['20min'] = fnames['5min'][::4]
-        #fnames['30min'] = fnames['5min'][::6]
-        #fnames['40min'] = fnames['5min'][::8]
-        #fnames['50min'] = fnames['5min'][::10]
+        #fnames['15min'] =  fnames['5min'][::3]
+        #fnames['25min'] = fnames['5min'][::5]
+        #fnames['35min'] = fnames['5min'][::7]
+        #fnames['45min'] = fnames['5min'][::9]
+        #fnames['55min'] = fnames['5min'][::11]
         #fnames['1H'] = fnames['5min'][::12]
 
         year = case[3:7]
@@ -53,11 +55,12 @@ for case in [cases[0]]:
 
         # get time series for case 
         date = year + month + day
+        print(case, year, month, day, flush = True)
         start = datetime.datetime(int(year), int(month), int(day), 0, 0)
         end = datetime.datetime(int(year), int(month), int(day), 7, 0)
-        print(case, year, month, day, flush = True)
-
-        for key in fnames.keys():
+        
+        for key in list(fnames.keys()):
+            print(key, flush = True)
             times = pd.date_range(start, end , freq = key)
             files = fnames[key]
             assert times.size == len(files)
@@ -91,18 +94,23 @@ for case in [cases[0]]:
                 prw_vcd = mcs_case.PRW_VCD.where(mcs_case.PRW_VCD > 0, 0 ).data
                 prwvcd_integrated = micro.pressure_integration(prw_vcd , -pressure.data)
 
+                evapo= mcs_case.PRW_VCD.where(mcs_case.PRW_VCD < 0, 0 ).data
+                evapo_integrated = micro.pressure_integration(evapo , -pressure.data)
+
                 # accumulate precip, take instaneous values for w,p,T 
                 if fname == files[0]: 
                     surface_precip = mcs_case.RAINNC
                     prwvcd = prwvcd_integrated
                     condensation_rate = condensation
+                    evaporation_rate = evapo_integrated
                 else:
                     surface_precip = np.dstack((surface_precip,  mcs_case.RAINNC  )) 
                     prwvcd = np.dstack((prwvcd,  prwvcd_integrated ))
                     condensation_rate = np.dstack((condensation_rate, condensation ))
-
+                    evaporation_rate = np.dstack((evaporation_rate, evapo_integrated))
+                    
             #### Save data for the case to netCDF4
-            data_vars = dict(condensation_rate=(["south_north", "west_east", "time"], condensation_rate),
+            data_vars = dict(evaporation_rate=(["south_north", "west_east", "time"], evaporation_rate),
                              surface_precip=(["south_north", "west_east", "time"], surface_precip),
                              prwvcd=(["south_north", "west_east", "time"], prwvcd),
                              lats=(["south_north", "west_east"], mcs_case.XLAT.values),
@@ -110,6 +118,6 @@ for case in [cases[0]]:
 
             coords = dict(south_north=mcs_case.south_north.values, west_east=mcs_case.west_east.values, time = times) 
             data = xr.Dataset(data_vars=data_vars, coords=coords)                                                                 
-            data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/'+ case + '/' + delta_x + '/idealized_mcs_condensation_grid_spacing_dependence_' + key + '_prw_vcd.nc')
+            data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/'+ case + '/' + delta_x + '/idealized_mcs_condensation_temporal_dependence_' + key + '_evaporation.nc')
 
 

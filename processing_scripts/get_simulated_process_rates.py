@@ -6,7 +6,7 @@ Get vertically integrated process rates (condensation and deposition rates) as o
 import xarray as xr 
 from pathlib import Path 
 import numpy as np 
-from datetime import datetime 
+import datetime 
 import pandas as pd 
 from microphysics import microphysics_functions as micro
 
