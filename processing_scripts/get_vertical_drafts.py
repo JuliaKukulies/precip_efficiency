@@ -84,7 +84,7 @@ for resolution in resolutions:
             files.sort()
             if caseID == '58':
                 del files[-1]
-                times = times[:-1]]
+                times = times[:-1]
                 
             print(len(files), times.shape[0])
             assert times.shape[0]  == len(files)
