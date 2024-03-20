@@ -27,42 +27,45 @@ cases =['19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5',
 
 process_rates = ['PRW_VCD', 'PRS_SDE', 'PRS_IDE', 'PRI_IDE', 'PRG_GDE', 'PRI_INU', 'PRI_IHA']
 
-grid_spacing = '4000'
+grid_spacings = ['12000', '4000', '2000', '1000','500'] 
 
-for case in cases:
-    year = case[3:7]
-    month = case[8:10]
-    day = case[11:13]
-    date = year + month + day
-    start = datetime.datetime(int(year), int(month), int(day), 0, 0)
-    end = datetime.datetime(int(year), int(month), int(day), 7, 0)
-    times = pd.date_range(start, end, freq= '5MIN')
 
-    files = list((path / case / grid_spacing).glob('wrfout*pr*'))
-    files.sort()
-    assert len(files) == times.size
-    
-    for processname in process_rates:
-        for fname in files:
-            ds= xr.open_dataset(fname)
-            print(processname, fname, flush = True)
-            process_t = ds[processname].where(ds[processname] > 0, 0).squeeze()
-            pressure = ds.P.squeeze() + ds.PB.squeeze()
-            lats = ds.XLAT.squeeze().values
-            lons = ds.XLONG.squeeze().values
-            integration = micro.pressure_integration(process_t.data, -pressure.data)
-            if fname == files[0]:
-                process = integration
-            else:
-                process = np.dstack((process, integration))
-            print(process.shape, lats.shape, lons.shape, times.shape)
+for case in [cases[0]]:
+    for grid_spacing in grid_spacings: 
+        year = case[3:7]
+        month = case[8:10]
+        day = case[11:13]
+        date = year + month + day
+        start = datetime.datetime(int(year), int(month), int(day), 0, 0)
+        end = datetime.datetime(int(year), int(month), int(day), 7, 0)
+        times = pd.date_range(start, end, freq= '5MIN')
 
-        #### Save data for the case to netCDF4
-        data_vars = {processname:(["south_north", "west_east", "time"], process),
-                    'lats':(["south_north", "west_east",], lats),
-                    'lons':(["south_north", "west_east"], lons),}
+        files = list((path / case / grid_spacing).glob('wrfout*pr*'))
+        files.sort()
+        assert len(files) == times.size
+        print(case, grid_spacing, len(files), flush = True)
 
-        coords = dict(time= times, south_north=ds.south_north.values, west_east=ds.west_east.values)
-        data = xr.Dataset(data_vars=data_vars, coords = coords)                                   
-        data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/idealized_mcs_'+case+'_' +processname+'_integrated.nc') 
+        for processname in process_rates:
+            for fname in files:
+                ds= xr.open_dataset(fname)
+                print(processname, fname, flush = True)
+                process_t = ds[processname].where(ds[processname] > 0, 0).squeeze()
+                pressure = ds.P.squeeze() + ds.PB.squeeze()
+                lats = ds.XLAT.squeeze().values
+                lons = ds.XLONG.squeeze().values
+                integration = micro.pressure_integration(process_t.data, -pressure.data)
+                if fname == files[0]:
+                    process = integration
+                else:
+                    process = np.dstack((process, integration))
+                print(process.shape, lats.shape, lons.shape, times.shape)
+
+            #### Save data for the case to netCDF4
+            data_vars = {processname:(["south_north", "west_east", "time"], process),
+                        'lats':(["south_north", "west_east",], lats),
+                        'lons':(["south_north", "west_east"], lons),}
+
+            coords = dict(time= times, south_north=ds.south_north.values, west_east=ds.west_east.values)
+            data = xr.Dataset(data_vars=data_vars, coords = coords)                                   
+            data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/idealized_mcs_'+case+'_' + grid_spacing + '_'+  processname+'_integrated.nc') 
 

@@ -16,6 +16,52 @@ from microphysics import microphysics_functions as micro
 import warnings
 warnings.filterwarnings("ignore")
 
+############################################define functions ###############################################
+factors = dict()
+factors['12000']= 1
+factors['4000'] = 3
+factors['2000'] = 6
+factors['1000'] = 12
+factors['500']  = 24
+factors['250']  = 48
+
+def conservative_regridding(data, deltax):
+    """
+    Regrid data with conservative mapping by simply taking the mean over square box.
+    """
+    time_dim = data.shape[-1]
+    x = data.shape[0]
+    data = np.vstack([data, np.zeros((1, x, time_dim)) ])
+    data = np.hstack([data, np.zeros((x+1 ,1, time_dim)) ])
+    m,n = data.shape[0], data.shape[1]
+    factor = factors[deltax]
+    out = data.reshape((m//factor, factor,  n//factor, factor, time_dim)).mean(axis=(1,3))
+    return out 
+
+
+def conservative_regridding_3D(data, deltax):
+        """
+        Regrid data with conservative mapping by simply taking the mean over square box
+        """
+        levels = data.shape[0]
+        for level in np.arange(levels):
+            level_data = data[level]
+            x = data.shape[1]
+            level_data = np.vstack([level_data, np.zeros((1,x)) ])
+            level_data = np.hstack([level_data, np.zeros((x + 1,1)) ])
+            m,n =level_data.shape[0], level_data.shape[1]
+            factor = factors[deltax]
+            out = level_data.reshape((m//factor, factor,  n//factor, factor)).mean(axis=(1,3))
+            if level == 0:
+                out_stack = out
+                continue
+            else:
+                out_stack = np.dstack([out_stack, out])
+        return out_stack
+
+##########################################################################################################
+
+
 #### selected cases ####
 #'19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5'
 #'03_2011-07-16_CTRL_Midwest_-Loc2_MCS_Storm-Nr_JJA-8-TH5'
@@ -49,7 +95,8 @@ future_cases  = ['64', '58', '41', '68', '31', '16', '34' ,'51', '56', '35']
 caseIDs = present_cases + future_cases
 
 resolutions = [12000, 4000, 2000, 1000, 500, 250]
-heights = np.arange(0,24250, 250)
+heights = np.arange(0,23750,250)
+print(heights.shape)
 
 for resolution in resolutions:
     resolution = str(resolution)
@@ -63,7 +110,7 @@ for resolution in resolutions:
             tag = 'CTRL'
         elif caseID in future_cases:
             tag = 'PGW'
-
+            
         subdir = list(path.glob(str(caseID + '*'+ tag +'*' + loc +'*Storm*TH5')))[0]
         # get times
         year = subdir.name[3:7]
@@ -73,7 +120,7 @@ for resolution in resolutions:
         start = datetime.datetime(int(year), int(month), int(day), 0, 0)
         end = datetime.datetime(int(year), int(month), int(day), 7, 0)
         times = pd.date_range(start, end, freq= '5MIN')
-        out_fname = out_path / ('idealized_mcs_'+ tag.lower()  +'_' + caseID + '_' + date + '_' + resolution + '_vertical.nc')
+        out_fname = out_path / ('idealized_mcs_'+ tag.lower()  +'_' + caseID + '_' + date + '_' + resolution + '_vertical_profiles.nc')
         
         if not Path( out_fname ).exists():
             print('deriving data for case '+ caseID + ' ' +date+ ' with' + resolution +  ' meter resolution.', flush = True)
@@ -94,15 +141,18 @@ for resolution in resolutions:
                 mcs_case = xr.open_dataset(fname).squeeze()
                 wrfin = Dataset(fname)
                 # get variables 
-                iwc = mcs_case.QSNOW +  mcs_case.QICE + mcs_case.QGRAUP
-                lwc =mcs_case.QRAIN + mcs_case.QCLOUD 
+                ice = mcs_case.QSNOW +  mcs_case.QICE + mcs_case.QGRAUP
+                liquid =mcs_case.QRAIN + mcs_case.QCLOUD
+                temp = wrf.getvar(wrfin, 'tk')
+                pressure = mcs_case.P + mcs_case.PB
 
                 # mean over horizontal dimension
-                iwc = iwc.mean(["south_north","west_east"]).data
-                lwc = lwc.mean(["south_north", "west_east"]).data
+                iwc = ice.where(ice > 0 ).mean(["south_north","west_east"]).data
+                lwc = liquid.where(liquid > 0 ).mean(["south_north", "west_east"]).data
                 try:
                     radar_reflectivity = mcs_case.DBZ.squeeze()
                 except:
+                    # some files do not have radar reflectivity values (very few): 
                     radar_reflectivity = xr.open_dataset(files[idx-1]).DBZ.squeeze()
 
                 # get vertical velocity on mass points instead of staggered
@@ -111,38 +161,61 @@ for resolution in resolutions:
 
                 # consider convective mass flux and vertical velocities (only where we have hydrometeors) 
                 updraft_intensity = vertical_velocity.where( (radar_reflectivity  > 0)     &   (vertical_velocity > 1.5)).mean(["south_north", "west_east"]).data
-                downdraft_intensity = vertical_velocity.where( (radar_reflectivity  > 0)   &  (vertical_velocity < -1.5)).mean(["south_north", "west_east"]).data
+                downdraft_intensity = vertical_velocity.where( vertical_velocity < -1.5).mean(["south_north", "west_east"]).data
 
+                # get quantiles for extreme updrafts on unregridded grid 
+                updraft95 = vertical_velocity.where( (radar_reflectivity  > 0) & (vertical_velocity > 1.5)).quantile(0.95, dim = ["south_north", "west_east"]).data
+                downdraft05 = vertical_velocity.where( (vertical_velocity < -1.5)).quantile(0.05, dim = ["south_north", "west_east"]).data
+
+                # get quantiles for extreme updrafts and downdrafts regridded to 12km
+                radar_reflectivity_regridded = xr.DataArray(conservative_regridding_3D(radar_reflectivity.data , str(resolution)) ) 
+                vertical_velocity_regridded = xr.DataArray(conservative_regridding_3D(vertical_velocity.data , str(resolution)) ) 
+                updraft95_regridded = vertical_velocity_regridded.where( (radar_reflectivity_regridded  > 0) & (vertical_velocity_regridded > 1.5)).quantile(0.95, dim = ["dim_0", "dim_1"]).data
+                downdraft05_regridded = vertical_velocity_regridded.where( (vertical_velocity_regridded < -1.5)).quantile(0.05, dim = ["dim_0", "dim_1"]).data
+                
                 #### Derive condensation rate (in kg/kg/s) 
                 condensation_rate_s= micro.get_condensation_rate(vertical_velocity, temp, pressure)
                 ### apply qcloud mask, because equation is conditional for grid cells with actual condensate 
                 condensation_masked = condensation_rate_s.where( qcloud > 0, 0)
                 # we are only interested in positive values, as negative values are evaporation  
-                condensation = condensation_masked.where(condensation_masked > 0, 0 ).mean(["south_north", "west_east"]).data
-                
+                condensation = condensation_masked.where(condensation_masked > 0).mean(["south_north", "west_east"]).data
+
                 #### Concatenate timesteps: ####                
                 if fname == files[0]: 
                     tiwc = iwc
                     tlwc = lwc
                     condensation_rate = condensation
                     updrafts = updraft_intensity
-                    downdrafts = downdraft_intensity  
+                    downdrafts = downdraft_intensity
+                    ext_updrafts = updraft95
+                    ext_downdrafts = downdraft05
+                    ext_updrafts_12km = updraft95_regridded
+                    ext_downdrafts_12km = downdraft05_regridded
                 else:
-                    tiwc  = np.dstack((tiwc, iwc))
-                    tlwc = np.dstack((tlwc, lwc))
-                    condensation_rate = np.dstack((condensation_rate, condensation))
-                    updrafts = np.dstack((updrafts, updraft_intensity ))
-                    downdrafts = np.dstack((downdrafts, downdraft_intensity ))
+                    tiwc  = np.vstack((tiwc, iwc))
+                    tlwc = np.vstack((tlwc, lwc))
+                    condensation_rate = np.vstack((condensation_rate, condensation))
+                    updrafts = np.vstack((updrafts, updraft_intensity ))
+                    downdrafts = np.vstack((downdrafts, downdraft_intensity ))
+                    ext_updrafts = np.vstack((ext_updrafts, updraft95 ))
+                    ext_downdrafts = np.vstack((ext_downdrafts, downdraft05 ))
+                    ext_updrafts_12km = np.vstack((ext_updrafts_12km, updraft95_regridded ))
+                    ext_downdrafts_12km = np.vstack((ext_downdrafts_12km, downdraft05_regridded ))
 
+                    
             #### Save data for the case to netCDF4 #### 
-            data_vars = dict(tiwc=(["bottom_top", "time"], tiwc),
-                             tlwc=(["bottom_top", "time"], tlwc),
-                             condensation_rate=(["bottom_up", "time"], condensation_rate),
-                             updrafts = (["bottom_up", "time"], updrafts),
-                             downdrafts = (["bottom_up", "time"], downdrafts),
-                             levels=(["bottom_top"], heights),) 
-            
-            coords = dict(levels=mcs_case.bottom_top.values, time = times)
+            data_vars = dict(tiwc=(["time", "bottom_top"], tiwc),
+                             tlwc=(["time", "bottom_top"], tlwc),
+                             condensation_rate=(["time", "bottom_top"], condensation_rate),
+                             ext_updrafts = (["time", "bottom_top"], ext_updrafts),
+                             ext_downdrafts = (["time", "bottom_top"], ext_downdrafts),
+                             ext_updrafts_12km = (["time", "bottom_top"], ext_updrafts_12km),
+                             ext_downdrafts_12km = (["time", "bottom_top"], ext_downdrafts_12km),
+                             mean_updrafts = (["time", "bottom_top"], updrafts),
+                             mean_downdrafts = (["time", "bottom_top"], downdrafts),
+                             levels=(["bottom_top"], heights),)
+
+            coords = dict(bottom_top=mcs_case.bottom_top.values, time = times)
             data = xr.Dataset(data_vars=data_vars, coords=coords)
             data.to_netcdf(out_fname)
             data.close()

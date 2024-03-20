@@ -1,4 +1,3 @@
-
 """
 This script derives the estimated and simulated condensation rates as well as accumulated precip for different temporal output from idealized MCS simulations.
 
@@ -97,27 +96,36 @@ for case in [cases[0]]:
                 evapo= mcs_case.PRW_VCD.where(mcs_case.PRW_VCD < 0, 0 ).data
                 evapo_integrated = micro.pressure_integration(evapo , -pressure.data)
 
+                # getting the deposition rates
+                total_deposition = mcs_case.PRS_SDE.where(mcs_case.PRS_SDE > 0, 0 ) + mcs_case.PRS_IDE.where(mcs_case.PRS_IDE >0, 0) + mcs_case.PRI_IDE.where(mcs_case.PRI_IDE > 0, 0) + mcs_case.PRG_GDE.where(mcs_case.PRG_GDE > 0, 0 ) + mcs_case.PRI_INU.where(mcs_case.PRI_INU > 0, 0) +  mcs_case.PRI_IHA.where(mcs_case.PRI_IHA > 0, 0)
+                # integrate these
+                deposition_integrated = micro.pressure_integration(total_deposition, -pressure.data)
+
                 # accumulate precip, take instaneous values for w,p,T 
                 if fname == files[0]: 
                     surface_precip = mcs_case.RAINNC
                     prwvcd = prwvcd_integrated
                     condensation_rate = condensation
                     evaporation_rate = evapo_integrated
+                    deposition_rate = deposition_integrated
                 else:
                     surface_precip = np.dstack((surface_precip,  mcs_case.RAINNC  )) 
                     prwvcd = np.dstack((prwvcd,  prwvcd_integrated ))
                     condensation_rate = np.dstack((condensation_rate, condensation ))
                     evaporation_rate = np.dstack((evaporation_rate, evapo_integrated))
-                    
+                    deposition_rate =  np.dstack((deposition_rate, deposition_integrated ))
+
             #### Save data for the case to netCDF4
             data_vars = dict(evaporation_rate=(["south_north", "west_east", "time"], evaporation_rate),
                              surface_precip=(["south_north", "west_east", "time"], surface_precip),
+                             deposition_rate=(["south_north", "west_east", "time"], deposition_rate),
+                             condensation_rate=(["south_north", "west_east", "time"], condensation_rate),
                              prwvcd=(["south_north", "west_east", "time"], prwvcd),
                              lats=(["south_north", "west_east"], mcs_case.XLAT.values),
                              lons=(["south_north", "west_east"], mcs_case.XLONG.values),)
-
+            
             coords = dict(south_north=mcs_case.south_north.values, west_east=mcs_case.west_east.values, time = times) 
             data = xr.Dataset(data_vars=data_vars, coords=coords)                                                                 
-            data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/'+ case + '/' + delta_x + '/idealized_mcs_condensation_temporal_dependence_' + key + '_evaporation.nc')
+            data.to_netcdf('/glade/derecho/scratch/kukulies/idealized_mcs/'+ case + '/' + delta_x + '/idealized_mcs_condensation_temporal_dependence_' + key + '_deposition.nc')
 
 
