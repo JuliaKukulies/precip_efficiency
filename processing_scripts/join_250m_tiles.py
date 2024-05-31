@@ -1,6 +1,6 @@
 '''
 
-This script joins the data tiles from the parallel output option in WRF (io_format = 102) and writes them into one netcdf file. 
+This script joins the data tiles from the parallel output option in WRF (io_format = 102) and writes them into one netcdf file.
 
 kukulies@ucar.edu
 
@@ -15,13 +15,15 @@ import xarray as xr
 import sys
 from pathlib import Path
 import math
+
 ################################################# define paths #######################################################################
+
 wrfout_splitfiles = '/glade/campaign/mmm/c3we/mingge/WRF_DOE/1KM/Thomson_YSU/sgp_20130617_07:00:00_L1_cheyenne/'
 rslout_file = '/glade/campaign/mmm/c3we/mingge/WRF_DOE/1KM/Thomson_YSU/sgp_20130617_07:00:00_L1_cheyenne/rsl.out.0000'
 wrfout_splitfiles = Path('/glade/derecho/scratch/kukulies/idealized_mcs/19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/250/')
 wrf = Path('/glade/work/kukulies/WRF/TempScripts/19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/250/')
 rslout_file = wrf / 'rsl.out.0000'
-savedir = Path('/glade/derecho/scratch/kukulies/idealized_mcs/joiner_tests/')
+savedir = Path('/glade/derecho/scratch/kukulies/idealized_mcs/19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/250/combined/')
 
 #####################################################################################################################################
 
@@ -45,19 +47,26 @@ y_tile_grids = int(math.ceil(y_size/y_comp))
 ################################################################################################
 
 # variables to write into combined output 
-var_list = ['RAINNC', 'PRW_VCD', 'PRS_SDE', 'PRG_GDE', 'PRI_IDE', 'PRI_IHA', 'PRI_INU', 'QCLOUD', 'W', 'T', 'P', 'PB']
+var_list = ['RAINNC', 'PRW_VCD', 'PRS_SDE', 'PRG_GDE', 'PRI_IDE', 'PRI_IHA', 'PRI_INU', 'QCLOUD', 'W', 'T', 'P', 'PB', 'QSNOW', 'QGRAUP', 'QICE', 'QVAPOR']
+
+var_list = ['QRAIN']
 method = 'nearest'
 
 # get list with all time steps 
 path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/19_2011-07-13_CTRL_Midwest_-Loc1_MCS_Storm-Nr_JJA-8-TH5/500') 
 fnames = list(path.glob('wrfout*00'))
+fnames.sort()
 timesteps = [tt.name for tt in fnames]
 timesteps.sort()
 
+for i in np.arange(len(timesteps)):
+        t = timesteps[i]
+        timesteps[i]= t.replace('pr', 'process_rates')
 
-for tstep in timesteps:
+for tstep in timesteps[32:]:
+    print(tstep, flush = True)
     # write output file 
-    outfile = savedir / (tstep + '_combined')
+    outfile = savedir / (tstep + '_combined_tiles_qrain')
     
     if outfile.is_file() is False: 
         DATA0 = xr.open_dataset(wrfout_splitfiles / str(tstep +'_'+str(0).zfill(4) ) ) 

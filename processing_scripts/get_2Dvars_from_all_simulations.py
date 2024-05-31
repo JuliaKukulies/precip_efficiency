@@ -46,9 +46,10 @@ out_path = Path('/glade/derecho/scratch/kukulies/idealized_mcs/')
 
 present_cases = ['03', '07', '10', '13', '17', '18', '19' ,'23', '38', '46']
 future_cases  = ['64', '58', '41', '68', '31', '16', '34' ,'51', '56', '35']
-caseIDs = present_cases + future_cases
+caseIDs = future_cases
 
 resolutions = [12000, 4000, 2000, 1000, 500, 250]
+resolutions  = ['12000nc']
 
 for resolution in resolutions:
     resolution = str(resolution)
@@ -57,6 +58,10 @@ for resolution in resolutions:
             loc = 'Loc2'
         else:
             loc = 'Loc1'
+        if caseID == '03':
+            resolution = '12000'
+        else:
+            resolution = '12000nc'
 
         if caseID in present_cases:
             tag = 'CTRL'
@@ -71,6 +76,7 @@ for resolution in resolutions:
         date = year + month + day
         start = datetime.datetime(int(year), int(month), int(day), 0, 0)
         end = datetime.datetime(int(year), int(month), int(day), 7, 0)
+        print(start, end, flush = True)
         times = pd.date_range(start, end, freq= '5MIN')
         out_fname = out_path / ('idealized_mcs_'+ tag.lower()  +'_' + caseID + '_' + date + '_' + resolution + '_vars.nc')
         
@@ -79,7 +85,7 @@ for resolution in resolutions:
             pattern = subdir / resolution
             if resolution == '250':
                 pattern = pattern / 'Combined'
-            files = list(pattern.glob('wrfout_d01*00'))
+            files = list(pattern.glob('wrfout*'))
             files.sort()
             if caseID == '58':
                 del files[-1]
