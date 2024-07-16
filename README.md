@@ -1,4 +1,7 @@
-# precip_efficiency
+[![DOI](https://zenodo.org/badge/710954466.svg)](https://zenodo.org/doi/10.5281/zenodo.12751717)
+
+
+# Simulating precipitation efficiency across the deep convective gray zone
 A project to study the precipitation efficiency in deep convective systems in k-scale model simulations and observations.
 
 This repository contains
